@@ -7,6 +7,10 @@ class Banco():
         self.costo_mantenimiento = 500
         self.comision_transferencia = 50
 
+    def crear_cuenta(self):
+        pass
+
+
     def alta_cliente(self, cliente):
         self.clientes.append(cliente)
 
@@ -26,11 +30,6 @@ class Banco():
     def transferir(self, nro_origen, nro_destino, monto):
         cuenta_origen = self.buscar_cuenta(nro_origen)
         cuenta_destino = self.buscar_cuenta(nro_destino)
-
-        if not cuenta_origen:
-            return f"Error: No se encontró la cuenta de origen N°: '{nro_origen}'"
-        if not cuenta_destino:
-            return f"Error: No se encontró la cuenta de destino N°: '{nro_destino}'"
 
         #se usa elmétodo transferir de CuentaBase
         

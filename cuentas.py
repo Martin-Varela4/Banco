@@ -23,13 +23,12 @@ class CuentaBase(ABC):
            
     def depositar(self, monto):
         if monto <= 0:
-             return 'Error: El monto a depositar debe ser mayor a 0'
+            return 'Error: El monto a depositar debe ser mayor a 0'
         
         self._saldo += monto
         return f"Depósito exitoso de: ${monto}! El nuevo saldo de '{self.titular.nombre}' es de: ${self._saldo}"
     
     def extraer(self, monto):
-        
         if monto <= 0:
             return "Error: El monto a retirar debe ser mayor que 0."
         
@@ -40,30 +39,39 @@ class CuentaBase(ABC):
             return (f"Ha retirado: ${monto}! \n"
                     f"El nuevo saldo de '{self.titular.nombre}' -- Cuenta N°: {self.numero} -- es de: ${self._saldo}")
         
-        
         elif not puede:
-            if monto >= self._saldo:
-                restante = self._saldo - monto
-                return (f'Error: No cuenta con suficiente saldo. Le faltan: ${abs(restante)}...')
-
-            return f"No se puede retirar dinero de la cuenta de '{self.titular.nombre}' por reglas del tipo de cuenta."
+            if isinstance(self, CuentaCorriente) and monto > (self._saldo + self.limite_descubierto):
+                return "Error: Se ha superado el límite de descubierto de su cuenta."
+            elif monto > self._saldo:
+                restante = monto - self._saldo
+                return f"Error: No cuenta con suficiente saldo. Le faltan ${restante}."
+            else:
+                return f"No se puede retirar dinero de la cuenta de '{self.titular.nombre}' por las reglas del tipo de cuenta."
         
     
     def transferir(self, destino, monto):
         if monto <= 0:
              return 'Error: La transferencia debe ser mayor a 0'
-        
-        if monto > self._saldo:
-            restante = self._saldo - monto
-            return(f'Error de transferencia: No cuenta con suficiente saldo. Le faltan: ${abs(restante)}...')
-        
-        self._saldo -= monto
-        destino._saldo += monto 
-        
-        return f'''Transferencia de ${monto} realizada con éxito!
-                De '{self.titular.nombre}' hacia '{destino.titular.nombre}'
-                Saldo actual: ${self._saldo}
-                '''
+
+        puede = self.puede_extraer(monto) #sirve para verificar limite descubierto
+         
+        if puede:
+            self._saldo -= monto
+            destino._saldo += monto 
+
+            return f'''Transferencia de ${monto} realizada con éxito!
+                    De '{self.titular.nombre}' hacia '{destino.titular.nombre}'
+                    Saldo actual: ${self._saldo}
+                    '''
+                    
+        elif not puede:
+              if isinstance(self, CuentaCorriente) and monto > (self._saldo + self.limite_descubierto):
+                  return "Error: Se ha superado el límite de descubierto de su cuenta."
+              elif monto > self._saldo:
+                  restante = monto - self._saldo
+                  return f"Error: No cuenta con suficiente saldo. Le faltan ${restante}."
+              else:
+                  return f"No se puede retirar dinero de la cuenta de '{self.titular.nombre}' por las reglas del tipo de cuenta."
                 
 class CajaAhorro(CuentaBase):
     def __init__(self, numero, titular, saldo, banco):
