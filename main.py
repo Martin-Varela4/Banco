@@ -1,10 +1,11 @@
-import os
+import os, sys
 from clientes import ClienteEmpresa, ClientePersona
 from cuentas import CajaAhorro, CuentaCorriente, CuentaPlazoFijo, CuentaBase
 from banco import Banco
 from datetime import date
-from informes import InformeBanco
 from menus import MenuBanco
+from interfaces.ventana_inicio import VentanaInicial
+from PySide6.QtWidgets import QApplication
 
 def clear():
     if os.name == "nt":
@@ -12,6 +13,15 @@ def clear():
         
 def main():  
     
+    app = QApplication(sys.argv)
+
+    # 🔹 Elegí qué ventana querés probar:
+    ventana = VentanaInicial()
+    # ventana = VentanaLogin()
+    # ventana = VentanaRegistro()
+
+    ventana.show()
+    sys.exit(app.exec())
     # Creación de tipo de clientes, sus cuentas y banco
     banco = Banco("Macro")
 

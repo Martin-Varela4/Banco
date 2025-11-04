@@ -1,7 +1,5 @@
 from PySide6.QtWidgets import QPushButton, QLineEdit, QLabel, QGridLayout, QVBoxLayout, QDialog, QHBoxLayout
 
-
-
 class InicioSesion(QDialog): #del boton iniciar sesión
     def __init__(self):
         super().__init__()
@@ -40,6 +38,8 @@ class InicioSesion(QDialog): #del boton iniciar sesión
         botones_layout = QHBoxLayout()
         btn_registrar = QPushButton("Iniciar")
         btn_cancelar = QPushButton("Cancelar")
+        btn_cancelar.clicked.connect(self.close)
+        
         botones_layout.addWidget(btn_registrar)
         botones_layout.addWidget(btn_cancelar)
 

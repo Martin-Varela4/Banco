@@ -1,6 +1,3 @@
-import sys
-
-from interfaces.inicio import InicioSesion
 from interfaces.registro import Registrarse
 from PySide6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout
 from PySide6.QtCore import Qt
@@ -17,7 +14,7 @@ class VentanaInicial(QWidget):
         self.setLayout(layout)
 
         # Titulo
-        titulo = QLabel("Bienvenido/a, ¿qué desea realizar?", self)
+        titulo = QLabel("Menú Principal", self)
         titulo.setAlignment(Qt.AlignCenter)
         titulo.setWordWrap(True)  # salto de línea
         
@@ -27,9 +24,11 @@ class VentanaInicial(QWidget):
         titulo.setFont(fuente)
 
         # Botones 
-        self.inicio = QPushButton("Iniciar sesión")
-        self.registro = QPushButton("Registrarse")
-        self.boton_salir = QPushButton("Salir")
+        self.cuentas = QPushButton("Ver cuentas")
+        self.depositar = QPushButton("Depositar")
+        self.transferir = QPushButton("Transferir")
+        self.retirar = QPushButton("Retirar")
+        self.salir = QPushButton("Salir")
         
         self.inicio.setMinimumHeight(40)
         self.registro.setMinimumHeight(40)
@@ -41,11 +40,11 @@ class VentanaInicial(QWidget):
         
 
         
-        layout.addWidget(self.inicio)
-        self.inicio.clicked.connect(self.abrir_login)
+        layout.addWidget(self.cuentas)
+        #self.inicio.clicked.connect(self.)
         
-        layout.addWidget(self.registro)
-        self.registro.clicked.connect(self.abrir_registro)
+        layout.addWidget(self.depositar)
+        #self.registro.clicked.connect(self.)
         
         
         layout.addWidget(self.boton_salir)
@@ -54,12 +53,12 @@ class VentanaInicial(QWidget):
         self.show()
         
         
-    def abrir_login(self):
-        self.ventana_login = InicioSesion()
-        self.ventana_login.show()
+    # def abrir_login(self):
+    #     self.ventana_login = InicioSesion()
+    #     self.ventana_login.show()
         
     
-    def abrir_registro(self):
-        self.ventana_login = Registrarse()
-        self.ventana_login.show()
+    # def abrir_registro(self):
+    #     self.ventana_login = Registrarse()
+    #     self.ventana_login.show()
         
