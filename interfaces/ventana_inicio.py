@@ -2,7 +2,8 @@ import sys
 
 from interfaces.inicio import InicioSesion
 from interfaces.registro import Registrarse
-from PySide6.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout
+from interfaces.principal import VentanaPrincipal
+from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QMessageBox
 from PySide6.QtCore import Qt
 
 class VentanaInicial(QWidget):
@@ -49,7 +50,8 @@ class VentanaInicial(QWidget):
         
         
         layout.addWidget(self.boton_salir)
-        self.boton_salir.clicked.connect(self.close) #Agregar: QMessageBox.warning
+        self.boton_salir.clicked.connect(self.confirmar_salida)
+
         
         self.show()
         
@@ -62,4 +64,20 @@ class VentanaInicial(QWidget):
     def abrir_registro(self):
         self.ventana_login = Registrarse()
         self.ventana_login.show()
+
+    def confirmar_salida(self):
+        
+        respuesta = QMessageBox.question(
+            self,
+            "Salir",
+            "¿Desea salir?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if respuesta == QMessageBox.Yes:
+            QMessageBox.information(self, "Salir", "Gracias por usar el banco. ¡Hasta luego!")
+            self.close()
+
+    def abrir_principal(self):
+        self.ventana_principal = VentanaPrincipal()
+        self.ventana_principal.show()
         

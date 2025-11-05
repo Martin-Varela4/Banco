@@ -5,6 +5,7 @@ from banco import Banco
 from datetime import date
 from menus import MenuBanco
 from interfaces.ventana_inicio import VentanaInicial
+from interfaces.principal import VentanaPrincipal
 from PySide6.QtWidgets import QApplication
 
 def clear():
@@ -15,10 +16,8 @@ def main():
     
     app = QApplication(sys.argv)
 
-    # 🔹 Elegí qué ventana querés probar:
-    ventana = VentanaInicial()
-    # ventana = VentanaLogin()
-    # ventana = VentanaRegistro()
+    ventana = VentanaPrincipal()
+    
 
     ventana.show()
     sys.exit(app.exec())
@@ -32,14 +31,16 @@ def main():
     cliente4 = ClientePersona("Marcos", 327244423)
     cliente5 = ClientePersona("Claudia", 32743125)
     cliente6 = ClientePersona("Juancho", 27947924)
+
+    clientes = [cliente1, cliente2, cliente3, cliente4, cliente5, cliente6] 
     
     #alta d clientes
-    banco.alta_cliente(cliente1)
-    banco.alta_cliente(cliente2)
-    banco.alta_cliente(cliente3)
-    banco.alta_cliente(cliente4)
-    banco.alta_cliente(cliente5)
-    banco.alta_cliente(cliente6)
+    banco.alta_cliente(clientes[0])
+    banco.alta_cliente(clientes[1])
+    banco.alta_cliente(clientes[2])
+    banco.alta_cliente(clientes[3])
+    banco.alta_cliente(clientes[4])
+    banco.alta_cliente(clientes[5])
 
     # Cuentas
     cc = CuentaCorriente(1, cliente1, 5000, banco, limite_descubierto=1000)
