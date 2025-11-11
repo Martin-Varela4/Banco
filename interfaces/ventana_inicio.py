@@ -1,10 +1,9 @@
 import sys
-
-from interfaces.inicio import InicioSesion
-from interfaces.registro import Registrarse
-from interfaces.principal import VentanaPrincipal
-from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QMessageBox
+from inicio import InicioSesion
+from .principal import VentanaPrincipal
+from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt
+
 
 class VentanaInicial(QWidget):
     def __init__(self,parent=None):
@@ -18,7 +17,7 @@ class VentanaInicial(QWidget):
         self.setLayout(layout)
 
         # Titulo
-        titulo = QLabel("Bienvenido/a, ¿qué desea realizar?", self)
+        titulo = QLabel("Bienvenido/a", self)
         titulo.setAlignment(Qt.AlignCenter)
         titulo.setWordWrap(True)  # salto de línea
         
@@ -29,24 +28,18 @@ class VentanaInicial(QWidget):
 
         # Botones 
         self.inicio = QPushButton("Iniciar sesión")
-        self.registro = QPushButton("Registrarse")
         self.boton_salir = QPushButton("Salir")
         
         self.inicio.setMinimumHeight(40)
-        self.registro.setMinimumHeight(40)
         self.boton_salir.setMinimumHeight(40)
 
 
         # Agregamos widgets al layout
         layout.addWidget(titulo)
         
-
         
         layout.addWidget(self.inicio)
         self.inicio.clicked.connect(self.abrir_login)
-        
-        layout.addWidget(self.registro)
-        self.registro.clicked.connect(self.abrir_registro)
         
         
         layout.addWidget(self.boton_salir)
@@ -61,10 +54,6 @@ class VentanaInicial(QWidget):
         self.ventana_login.show()
         
     
-    def abrir_registro(self):
-        self.ventana_login = Registrarse()
-        self.ventana_login.show()
-
     def confirmar_salida(self):
         
         respuesta = QMessageBox.question(
@@ -74,10 +63,19 @@ class VentanaInicial(QWidget):
             QMessageBox.Yes | QMessageBox.No
         )
         if respuesta == QMessageBox.Yes:
-            QMessageBox.information(self, "Salir", "Gracias por usar el banco. ¡Hasta luego!")
+            QMessageBox.information(self, "Salir", "¡Hasta luego!")
             self.close()
 
-    def abrir_principal(self):
-        self.ventana_principal = VentanaPrincipal()
-        self.ventana_principal.show()
+    # def abrir_principal(self):
+    #     self.ventana_principal = VentanaPrincipal()
+    #     self.ventana_principal.show()
         
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    
+    # Configuramos el estilo para una mejor visualización multiplataforma
+    app.setStyle("Fusion") 
+    
+    main_window = InicioSesion()
+    main_window.show()
+    sys.exit(app.exec())

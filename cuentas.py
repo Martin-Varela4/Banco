@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date
+import base_datos as bd
 
 class CuentaBase(ABC):
     @abstractmethod
