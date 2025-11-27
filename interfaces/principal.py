@@ -55,9 +55,6 @@ class VentanaPrincipal(QMainWindow):
         act_movimientos= movimientos_menu.addAction("Transferencia")
         act_movimientos.triggered.connect(self.abrir_transferencia)
         
-        act_movimientos = movimientos_menu.addAction("Plazo fijo")
-        #act_cuentas.triggered.connect(self.abrir_plazo_fijo)
-        
         
         
         #informes

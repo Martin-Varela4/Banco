@@ -85,7 +85,7 @@ class VentanaDeposito(QDialog):
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Error de DB", f"Fallo de la base de datos: {e}")
         except Exception as e:
-            QMessageBox.critical(self, "Error Fatal", f"Ocurrió un error inesperado: {e}")
+            QMessageBox.critical(self, "Error", f"Ocurrió un error inesperado: {e}")
         
 
 

@@ -90,7 +90,7 @@ class InicioSesion(QDialog):
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Error de DB", f"Fallo la conexión o consulta: {e}")
         except Exception as e:
-            QMessageBox.critical(self, "Error Fatal", f"Ocurrió un error inesperado: {e}")
+            QMessageBox.critical(self, "Error", f"Ocurrió un error inesperado: {e}")
 
     
     def abrir_menu_banco(self, nombre_empleado, rol_empleado):

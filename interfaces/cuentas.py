@@ -57,8 +57,6 @@ class FormularioCajaAhorro(QWidget):
         layout.setRowStretch(2, 1)
 
 
-
-
 class VentanaCuentas(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -78,13 +76,11 @@ class VentanaCuentas(QDialog):
         layout_principal.addSpacing(15)
 
      
-        
-       
-        self.combo_operacion = self._crear_combo_box(["Agregar Cuenta", "Actualizar Parámetros", "Cerrar Cuenta"])
+        self.combo_operacion = self.crear_combo_box(["Agregar Cuenta", "Actualizar Parámetros", "Cerrar Cuenta"])
         self.combo_operacion.currentIndexChanged.connect(self.cambiar_operacion)
         
        
-        self.combo_tipo_cuenta = self._crear_combo_box(["Cuenta Corriente", "Plazo Fijo", "Caja de Ahorro"])
+        self.combo_tipo_cuenta = self.crear_combo_box(["Cuenta Corriente", "Plazo Fijo", "Caja de Ahorro"])
 
         #cambia la pila del QStackedWidget interno
         self.combo_tipo_cuenta.currentIndexChanged.connect(self.cambiar_tipo_formulario)
@@ -98,7 +94,6 @@ class VentanaCuentas(QDialog):
         layout_principal.addLayout(self._crear_horizontal_layout(QLabel("<b>Operación:</b>"), self.combo_operacion))
         layout_principal.addLayout(dni_layout)
         layout_principal.addLayout(self._crear_horizontal_layout(QLabel("<b>Tipo de Cuenta:</b>"), self.combo_tipo_cuenta))
-    
     
         
         self.stacked_campos = QStackedWidget()
@@ -136,7 +131,7 @@ class VentanaCuentas(QDialog):
         
 
     
-    def _crear_combo_box(self, items):
+    def crear_combo_box(self, items):
         combo = QComboBox()
         combo.addItems(items)
         combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -247,6 +242,11 @@ class VentanaCuentas(QDialog):
     def actualizar_parametros(self):
         id_cuenta = self.txt_id_cuenta.text().strip()
         tipo_cuenta = self.combo_tipo_cuenta.currentText()
+        dni_cliente = self.cliente_dni.text().strip()
+        
+        if not dni_cliente:
+            QMessageBox.warning(self, "Error", "Debe ingresar el DNI del cliente.")
+            return
         
         if not id_cuenta:
             QMessageBox.warning(self, "Error", "Debe ingresar el ID de la cuenta a actualizar.")
@@ -269,14 +269,23 @@ class VentanaCuentas(QDialog):
         
 
         try:
-            bd.actualizar_cuenta_parametros(id_cuenta, saldo, param_nombre, parametro_especifico)
+            bd.actualizar_cuenta_parametros(
+                id_cuenta, 
+                dni_cliente, 
+                saldo, 
+                param_nombre, 
+                parametro_especifico
+            )
             
-            QMessageBox.information(self, "Éxito", f"Parámetros de Cuenta {id_cuenta} actualizados.")
+            QMessageBox.information(self, "Éxito", f"Parámetros de Cuenta {id_cuenta} actualizados correctamente.")
             
         except ValueError as e:
+        
             QMessageBox.critical(self, "Error de Validación", str(e))
+        except RuntimeError as e:
+            QMessageBox.critical(self, "Error de Base de Datos", str(e))
         except Exception as e:
-            QMessageBox.critical(self, "Error de DB", f"Fallo al actualizar: {e}")
+            QMessageBox.critical(self, "Error", f"Ocurrió un error inesperado: {e}")
 
     def cerrar_cuenta(self):
         id_cuenta = self.txt_id_cuenta.text().strip()

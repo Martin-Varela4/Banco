@@ -114,9 +114,28 @@ def agregar_cliente(dni, nombre, apellido, contrasena, telefono, direccion):
 def eliminar_cliente(dni_cliente):
     conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM clientes WHERE dni=?", (dni_cliente,))
-    conn.commit()
-    conn.close()
+    
+    cursor.execute("SELECT COUNT(*) FROM clientes WHERE dni=?", (dni_cliente,))
+    count = cursor.fetchone()[0]
+    
+    
+    try: 
+        if count == 0:
+                
+                raise ValueError(f"Error: El DNI '{dni_cliente}' no se encuentra registrado.")
+
+        
+        cursor.execute("DELETE FROM clientes WHERE dni=?", (dni_cliente,))
+        conn.commit()
+        return True
+    
+    except ValueError:
+        raise
+    
+    
+    finally:
+        conn.close()
+    
 
 
 def obtener_cliente_por_dni(dni):
@@ -268,29 +287,58 @@ def abrir_cuenta(cliente_dni, tipo_cuenta, saldo_inicial_str, parametro_especifi
         conn.close()
 
 
-def actualizar_cuenta_parametros(id_cuenta, nuevo_saldo_str, param_nombre, param_valor_str):
+def actualizar_cuenta_parametros(id_cuenta, dni_cliente, nuevo_saldo_str, param_nombre, param_valor_str):
     conn = conectar_db()
     cursor = conn.cursor()
     
     try:
-        saldo = float(nuevo_saldo_str)
+       
+        cursor.execute("SELECT id FROM cuentas WHERE id=? AND cliente_dni=?", (id_cuenta, dni_cliente))
         
+        if cursor.fetchone() is None:
+            
+            cursor.execute("SELECT id FROM cuentas WHERE id=?", (id_cuenta,))
+            if cursor.fetchone() is None:
+                raise ValueError(f"Error: La cuenta con ID '{id_cuenta}' no existe en la base de datos.")
+            else:
+                raise ValueError(f"Error: La cuenta '{id_cuenta}' NO pertenece al cliente con DNI '{dni_cliente}'.")
+
+      
+        try:
+            saldo = float(nuevo_saldo_str)
+        except ValueError:
+            raise ValueError("El saldo debe ser un número válido.")
+
+       
         cursor.execute("UPDATE cuentas SET saldo=? WHERE id=?", (saldo, id_cuenta))
         
+       
+        if param_nombre and param_valor_str:
+            try:
+                param_valor = float(param_valor_str)
+            except ValueError:
+                raise ValueError("El parámetro (Límite/Tasa) debe ser un número válido.")
 
-        if param_nombre == "limite_descubierto" and param_valor_str:
-            param_valor = float(param_valor_str)
-            cursor.execute("UPDATE cuentas_corrientes SET limite_descubierto=? WHERE id_cuenta=?", 
-                           (param_valor, id_cuenta))
-        elif param_nombre == "tasa_interes" and param_valor_str:
-            param_valor = float(param_valor_str)
-            cursor.execute("UPDATE plazos_fijos SET tasa_interes=? WHERE id_cuenta=?", 
-                           (param_valor, id_cuenta))
+            if param_nombre == "limite_descubierto":
+                cursor.execute("UPDATE cuentas_corrientes SET limite_descubierto=? WHERE id_cuenta=?", 
+                               (param_valor, id_cuenta))
+                
+                if cursor.rowcount == 0:
+                    raise ValueError(f"La cuenta {id_cuenta} no es una Cuenta Corriente.")
+
+            elif param_nombre == "tasa_interes":
+                cursor.execute("UPDATE plazos_fijos SET tasa_interes=? WHERE id_cuenta=?", 
+                               (param_valor, id_cuenta))
+                if cursor.rowcount == 0:
+                    raise ValueError(f"La cuenta {id_cuenta} no es un Plazo Fijo.")
         
         conn.commit()
         
     except ValueError:
-        raise ValueError("Los valores numéricos de saldo o parámetros son inválidos.")
+        raise 
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise Exception(f"Error de base de datos al actualizar: {e}")
     finally:
         conn.close()
 
@@ -321,6 +369,21 @@ def cerrar_cuenta(id_cuenta):
         conn.close()
 
 
+
+def verificar_existencia_dni(dni):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT 1 FROM clientes WHERE dni=?", (dni,))
+        # Si fetchone() devuelve algo, significa que el cliente existe.
+        return cursor.fetchone() is not None 
+        
+    except Exception as e:
+        raise Exception(f"Error de consulta de existencia: {e}")
+        
+    finally:
+        conn.close()
 # ----------------------------APARTADO DE MOVIMIENTOS--------------------------.
 
 def ejecutar_deposito(id_cuenta, monto):
@@ -365,33 +428,44 @@ def ejecutar_extraccion(id_cuenta, monto):
     cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT saldo, tipo FROM cuentas WHERE id=? AND estado='ACTIVA'", (id_cuenta,))
-        resultado = cursor.fetchone()
+    
+        cursor.execute("SELECT saldo, tipo, cliente_dni FROM cuentas WHERE id=? AND estado='ACTIVA'", (id_cuenta,))
+        resultado_cuenta = cursor.fetchone()
         
-        if resultado is None:
+        if resultado_cuenta is None:
             raise ValueError(f"La cuenta ID {id_cuenta} no existe o no está activa.")
         
-        saldo_actual, tipo_cuenta = resultado
+        saldo_actual, tipo_cuenta, dni_cliente = resultado_cuenta
         nuevo_saldo = saldo_actual - monto
         
         
+        cursor.execute("SELECT nombre FROM clientes WHERE dni=?", (dni_cliente,))
+        resultado_cliente = cursor.fetchone()
+        
+        if resultado_cliente is None:
+
+            raise RuntimeError(f"Error de integridad de datos: Cliente (DNI: {dni_cliente}) no encontrado.")
+            
+        nombre_cliente = resultado_cliente[0]
+        
+       
         if tipo_cuenta == 'Cuenta Corriente':
             cursor.execute("SELECT limite_descubierto FROM cuentas_corrientes WHERE id_cuenta=?", (id_cuenta,))
             limite = cursor.fetchone()
             
-            if limite is None:
-                saldo_minimo_permitido = 0 
-            else:
+            limite_descubierto = 0.0
+            if limite is not None:
                 limite_descubierto = limite[0]
-                saldo_minimo_permitido = -limite_descubierto 
-                
+            
+            saldo_minimo_permitido = -limite_descubierto 
+            
             if nuevo_saldo < saldo_minimo_permitido:
-
                 raise ValueError(f"Extracción rechazada. Supera el límite de descubierto de ${limite_descubierto:.2f}.")
 
         elif nuevo_saldo < 0:
             raise ValueError("Saldo insuficiente. El saldo no puede ser negativo.")
 
+       
         cursor.execute("UPDATE cuentas SET saldo=? WHERE id=?", (nuevo_saldo, id_cuenta))
         
         cursor.execute("INSERT INTO movimientos (id_cuenta, tipo_movimiento, monto, fecha_hora) VALUES (?, ?, ?, ?)", 
@@ -399,12 +473,20 @@ def ejecutar_extraccion(id_cuenta, monto):
         
         conn.commit()
         
+        
+        return nuevo_saldo, dni_cliente, nombre_cliente
+        
     except ValueError:
         conn.rollback()
-        raise
-    except Exception as e:
+        raise 
+    except sqlite3.Error as e:
+        print(f"error sqlite en extracción: {e}",)
         conn.rollback()
-        raise Exception(f"Error en extracción: {e}")
+        raise RuntimeError(f"Error de base de datos al realizar la extracción: {e}")
+    except Exception as e:
+
+        conn.rollback()
+        raise Exception(f"Fallo inesperado en la extracción: {e}")
     finally:
         conn.close()
 

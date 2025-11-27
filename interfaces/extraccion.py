@@ -73,15 +73,21 @@ class VentanaExtraccion(QDialog):
 
       
         try:
-            bd.ejecutar_extraccion(id_cuenta, monto)
+           
+            nuevo_saldo, dni_cliente, nombre_cliente = bd.ejecutar_extraccion(id_cuenta, monto)
             
-            QMessageBox.information(self, "Éxito", f"Se extrajeron ${monto:.2f} de la cuenta {id_cuenta}.")
+            QMessageBox.information(
+                self, 
+                "Extracción Exitosa", 
+                f"Se extrajeron ${monto:.2f} de la cuenta {id_cuenta}.\n"
+                f"Titular: {nombre_cliente} (DNI: {dni_cliente})\n"
+                f"Nuevo Saldo: ${nuevo_saldo:.2f}"
+            )
             self.accept()
             
         except ValueError as e:
-    
             QMessageBox.critical(self, "Error de Operación", str(e))
-        except sqlite3.Error as e:
-            QMessageBox.critical(self, "Error de DB", f"Fallo de la base de datos: {e}")
+        except RuntimeError as e:
+            QMessageBox.critical(self, "Error de Base de Datos", str(e))
         except Exception as e:
-            QMessageBox.critical(self, "Error Fatal", f"Ocurrió un error inesperado: {e}")
+            QMessageBox.critical(self, "Error", f"Ocurrió un error inesperado: {e}")
