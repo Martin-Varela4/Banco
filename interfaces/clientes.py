@@ -288,23 +288,43 @@ class VentanaClientes(QDialog):
 
     def baja_cliente(self):
         dni = self.dni.text().strip()
+
         if not dni:
             QMessageBox.warning(self, "Error", "Ingrese DNI.")
             return
 
-        confirm = QMessageBox.question(self, "Confirmar Baja", 
-                                     f"Dar de baja a cliente {dni}?", QMessageBox.Yes | QMessageBox.No)
-        
-        if confirm == QMessageBox.Yes:
-            try:
-                bd.eliminar_cliente(dni)
-                QMessageBox.information(self, "Éxito", "Cliente dado de baja.")
+        try:
+            datos_cliente = bd.obtener_cliente_por_dni(dni) 
+
+            if datos_cliente is None:
+                raise ValueError(f"Error: El DNI '{dni}' no se encuentra registrado.")
+
+            nombre = datos_cliente[0]
+            apellido = datos_cliente[1]
+            nombre_completo = f"{nombre} {apellido}"
+
+            confirm = QMessageBox.question(
+                self, 
+                "Confirmar Baja", 
+                f"¿Está seguro de dar de baja al cliente: {nombre_completo} (DNI: {dni})?", 
+                QMessageBox.Yes | QMessageBox.No
+            )
+
+            if confirm == QMessageBox.Yes:
+                nombre_eliminado = bd.eliminar_cliente(dni) 
+
+                QMessageBox.information(self, "Éxito", f"Cliente {nombre_eliminado} dado de baja correctamente.")
                 self.limpiar_campos()
                 self.cambiar_operacion(2)
-            except ValueError as e:
-                QMessageBox.critical(self, "Error", str(e))
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error al dar de baja: {e}")
+
+        except ValueError as e:
+            # Captura DNI no encontrado o error de lógica de negocio
+            QMessageBox.critical(self, "Error", str(e))
+        except RuntimeError as e:
+            # Captura errores de base de datos (RuntimeError re-lanzado desde bd.py)
+            QMessageBox.critical(self, "Error de DB", str(e))
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error al dar de baja: {e}")
 
 
     def limpiar_campos(self):

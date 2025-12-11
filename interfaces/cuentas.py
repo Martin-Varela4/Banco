@@ -104,12 +104,12 @@ class VentanaCuentas(QDialog):
         self.form_plazo_fijo = FormularioPlazoFijo()
         self.form_caja_ahorro = FormularioCajaAhorro()
         
-        # añadimos los formularios como "pilas"
+
         self.stacked_campos.addWidget(self.form_corriente)  
         self.stacked_campos.addWidget(self.form_plazo_fijo) 
         self.stacked_campos.addWidget(self.form_caja_ahorro)
         
-        layout_principal.addLayout(self.layout_campos_fijos) # campos fijos (ID Cuenta)
+        layout_principal.addLayout(self.layout_campos_fijos)
         layout_principal.addWidget(self.stacked_campos)      
         
 
@@ -173,7 +173,7 @@ class VentanaCuentas(QDialog):
             self.setWindowTitle("CERRAR")
             self.btn_aceptar.setText("Cerrar Cuenta")
             
-            # Añadir campo de ID de Cuenta
+        
             self.lbl_id_cuenta = QLabel("<b>ID de Cuenta:</b>")
             self.txt_id_cuenta = QLineEdit()
             self.layout_campos_fijos.addWidget(self.lbl_id_cuenta, 0, 0)
@@ -288,28 +288,67 @@ class VentanaCuentas(QDialog):
             QMessageBox.critical(self, "Error", f"Ocurrió un error inesperado: {e}")
 
     def cerrar_cuenta(self):
-        id_cuenta = self.txt_id_cuenta.text().strip()
+
         
-        if not id_cuenta:
+        id_cuenta_str = self.txt_id_cuenta.text().strip()
+    
+        if not id_cuenta_str:
             QMessageBox.warning(self, "Error", "Debe ingresar el ID de la cuenta a cerrar.")
             return
-
-        respuesta = QMessageBox.question(self, "Confirmar Cierre", 
-                                        f"¿Está seguro de cerrar la cuenta ID: {id_cuenta}? El saldo debe ser cero.", 
-                                        QMessageBox.Yes | QMessageBox.No)
+    
+        try:
+            id_cuenta_int = int(id_cuenta_str)
+        except ValueError:
+            QMessageBox.warning(self, "Error", "El ID de la cuenta debe ser un número entero.")
+            return
+    
+    
+        dni_str = self.cliente_dni.text().strip()
+    
+        if not dni_str:
+            QMessageBox.warning(self, "Error", "Debe ingresar el DNI del cliente.")
+            return
+    
+    
         
+        datos_cliente = bd.obtener_cliente_por_dni(dni_str)
+    
+        if datos_cliente is None:
+            QMessageBox.warning(self, "Error", f"No existe un cliente con DNI {dni_str}.")
+            return
+    
+        # datos_cliente = (nombre, apellido, contrasena, telefono, direccion)
+        nombre, apellido = datos_cliente[0], datos_cliente[1]
+        nombre_completo = f"{nombre} {apellido}"
+    
+    
+        respuesta = QMessageBox.question(
+            self,
+            "Confirmar Cierre",
+            f"¿Está seguro de cerrar la cuenta ID {id_cuenta_int} de {nombre_completo}?\n"
+            "El saldo debe ser $0.00.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+    
         if respuesta == QMessageBox.No:
             return
-            
-
+    
         try:
-            bd.cerrar_cuenta(id_cuenta)
+            bd.cerrar_cuenta(id_cuenta_int)
+    
+            QMessageBox.information(
+                self,
+                "Éxito",
+                f"La cuenta {id_cuenta_int} ha sido cerrada correctamente."
+            )
+    
             
-            QMessageBox.information(self, "Éxito", f"Cuenta {id_cuenta} cerrada (estado actualizado).")
-            
+            self.txt_id_cuenta.clear()
+    
         except ValueError as e:
-            QMessageBox.critical(self, "Error de Cierre", str(e)) # Captura "Saldo no es cero"
+            QMessageBox.critical(self, "Error de Validación", str(e))
+    
         except Exception as e:
-            QMessageBox.critical(self, "Error de DB", f"Fallo al cerrar cuenta: {e}")
+            QMessageBox.critical(self, "Error inesperado", f"Error en la base de datos: {e}")
 
 

@@ -1,5 +1,5 @@
 import sqlite3
-import os
+import os, sys
 from datetime import datetime
 
 
@@ -115,36 +115,50 @@ def eliminar_cliente(dni_cliente):
     conn = conectar_db()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT COUNT(*) FROM clientes WHERE dni=?", (dni_cliente,))
-    count = cursor.fetchone()[0]
-    
-    
     try: 
-        if count == 0:
-                
-                raise ValueError(f"Error: El DNI '{dni_cliente}' no se encuentra registrado.")
-
+        cursor.execute("SELECT nombre, apellido FROM clientes WHERE dni=?", (dni_cliente,))
+        resultado = cursor.fetchone()
+        
+        if resultado is None:
+            raise ValueError(f"Error: El DNI '{dni_cliente}' no se encuentra registrado.")
+        
+        nombre, apellido = resultado
+        nombre_completo = f"{nombre} {apellido}"
         
         cursor.execute("DELETE FROM clientes WHERE dni=?", (dni_cliente,))
         conn.commit()
-        return True
+        
+        
+        return nombre_completo
     
     except ValueError:
-        raise
-    
-    
+        conn.rollback()
+        raise 
+    except sqlite3.Error as e:
+        print(f"Error sqlite en eliminación de cliente: {e}", file=sys.stderr)
+        conn.rollback()
+        raise RuntimeError(f"Error de base de datos al intentar eliminar el cliente: {e}")
+    except Exception as e:
+        conn.rollback()
+        raise Exception(f"Fallo grave e inesperado al eliminar cliente: {e}")
     finally:
         conn.close()
     
 
 
 def obtener_cliente_por_dni(dni):
-    conn = conectar_db() 
+    conn = conectar_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT nombre, apellido, contrasena, telefono, direccion FROM clientes WHERE dni=?", (dni,))
-    resultado = cursor.fetchone()
+
+    cursor.execute(
+        "SELECT nombre, apellido, contrasena, telefono, direccion FROM clientes WHERE dni=?",
+        (dni,)
+    )
+    
+    resultado = cursor.fetchone() 
+    
     conn.close()
-    return resultado 
+    return resultado
 
 def actualizar_cliente(dni, nombre, apellido, contrasena, telefono, direccion):
     conn = conectar_db()
@@ -343,31 +357,92 @@ def actualizar_cuenta_parametros(id_cuenta, dni_cliente, nuevo_saldo_str, param_
         conn.close()
 
 
-def cerrar_cuenta(id_cuenta):
+def obtener_saldo_cuenta(id_cuenta):
+    """Obtiene el saldo actual de una cuenta. Lanza ValueError si la cuenta no existe."""
     conn = conectar_db()
     cursor = conn.cursor()
     
     try:
+        # Consulta para obtener solo el saldo
         cursor.execute("SELECT saldo FROM cuentas WHERE id=?", (id_cuenta,))
         resultado = cursor.fetchone()
         
         if resultado is None:
-            raise ValueError(f"La cuenta ID {id_cuenta} no existe.")
+            # Si no se encuentra ninguna fila, la cuenta no existe
+            raise ValueError(f"Error: No se encontró la cuenta con ID '{id_cuenta}'.")
             
-        saldo_actual = resultado[0]
+        return resultado[0] # Devuelve el saldo (primer elemento de la tupla)
         
+    except ValueError:
+        # Re-lanza el error de cuenta no encontrada
+        raise
+    except sqlite3.Error as e:
+        # Captura errores de SQL, conexión, etc.
+        raise RuntimeError(f"Error de DB al obtener saldo: {e}")
+    finally:
+        # Asegura que la conexión se cierre SIEMPRE
+        conn.close()
+
+# MODIFICACIÓN DE LA FUNCIÓN DE CIERRE (Ahora utiliza obtener_saldo_cuenta)
+def cerrar_cuenta(id_cuenta):
+    """
+    Cierra una cuenta bancaria cambiando su estado a 'CERRADA'.
+    Requiere que el saldo sea cero.
+    """
+    conn = conectar_db()
+    cursor = conn.cursor()
     
-        if saldo_actual != 0.00: 
-            raise ValueError(f"El saldo de la cuenta debe ser cero (${saldo_actual}) para poder cerrarla.")
+    try:
+        # 1. VALIDACIÓN: Verificar saldo usando la nueva función
+        saldo = obtener_saldo_cuenta(id_cuenta)
+        
+        if saldo != 0:
+            raise ValueError(f"Error de Cierre: La cuenta ID {id_cuenta} tiene un saldo de ${saldo:.2f}. El saldo debe ser cero para cerrarse.")
+        
+        # 2. ACCIÓN: Cambiar estado a CERRADA (NO BORRAR)
+        cursor.execute("UPDATE cuentas SET estado = 'CERRADA' WHERE id=?", (id_cuenta,))
+        
+        if cursor.rowcount == 0:
+            conn.rollback()
+            raise ValueError(f"Error: La cuenta con ID '{id_cuenta}' no existe o ya estaba cerrada.")
             
-   
-        cursor.execute("UPDATE cuentas SET estado='CERRADA' WHERE id=?", (id_cuenta,))
-        
         conn.commit()
+        return True
         
+    except ValueError:
+        conn.rollback()
+        raise
+    except sqlite3.Error as e:
+        print(f"ERROR SQLITE al cerrar cuenta: {e}", file=sys.stderr)
+        conn.rollback()
+        raise RuntimeError(f"Error de base de datos al cerrar la cuenta: {e}")
     finally:
         conn.close()
 
+def reabrir_cuenta(id_cuenta):
+    """
+    Reabre una cuenta previamente cerrada, cambiando su estado a 'ACTIVA' 
+    y garantizando que el saldo sea cero al momento de la reapertura.
+    """
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("UPDATE cuentas SET estado = 'ACTIVA', saldo = 0 WHERE id=? AND estado='CERRADA'", (id_cuenta,))
+        
+        if cursor.rowcount == 0:
+            conn.rollback()
+            raise ValueError(f"Error: La cuenta ID '{id_cuenta}' no pudo ser reabierta. Verifique que exista y que su estado actual sea 'CERRADA'.")
+            
+        conn.commit()
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"ERROR SQLITE al reabrir cuenta: {e}", file=sys.stderr)
+        conn.rollback()
+        raise RuntimeError(f"Error de base de datos al reabrir la cuenta: {e}")
+    finally:
+        conn.close()
 
 
 def verificar_existencia_dni(dni):
@@ -563,8 +638,35 @@ def ejecutar_transferencia(id_origen, id_destino, monto):
         conn.close()
         
 
+def obtener_informe_movimientos(id_cuenta_principal):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT 
+                fecha_hora, 
+                tipo_movimiento, 
+                monto, 
+                cuenta_relacionada,  
+                id_cuenta,
+                descripcion
+            FROM movimientos
+            WHERE id_cuenta = ? OR cuenta_relacionada = ? 
+            ORDER BY fecha_hora DESC
+        """, (id_cuenta_principal, id_cuenta_principal))
+        
+        movimientos = cursor.fetchall()
+        return movimientos
+        
+    except sqlite3.Error as e:
+        print(f"ERROR SQLITE al obtener movimientos: {e}", file=sys.stderr)
+        raise RuntimeError(f"Error de base de datos al generar el informe: {e}")
+    finally:
+        conn.close()
+
+
 def obtener_movimientos_filtrados(tipo_movimiento, fecha_desde, fecha_hasta):
- 
     conn = conectar_db()
     cursor = conn.cursor()
     
@@ -582,12 +684,10 @@ def obtener_movimientos_filtrados(tipo_movimiento, fecha_desde, fecha_hasta):
     """
     parametros = [fecha_desde, fecha_hasta]
     
- 
     if tipo_movimiento != "TODOS":
         query += " AND tipo_movimiento = ?"
         parametros.append(tipo_movimiento)
-        
-  
+    
     query += " ORDER BY fecha_hora DESC"
     
     try:
@@ -596,10 +696,24 @@ def obtener_movimientos_filtrados(tipo_movimiento, fecha_desde, fecha_hasta):
         return movimientos
         
     except sqlite3.Error as e:
-        raise Exception(f"Error de SQL al consultar movimientos: {e}")
+        print(f"ERROR SQLITE al consultar movimientos filtrados: {e}", file=sys.stderr)
+        raise RuntimeError(f"Error de base de datos al consultar movimientos: {e}")
     finally:
         conn.close()
 
 
+def eliminar():
+    conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute(""" 
+                   DELETE FROM cuentas; 
+                   """)
+    conn.commit()
+    conn.close()
+    
+
+
+
 tablas()
 inicializar_empleado()
+eliminar()
